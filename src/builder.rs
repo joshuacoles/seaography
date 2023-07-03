@@ -116,15 +116,11 @@ impl Builder {
     }
 
     /// used to consume the builder context and generate a ready to be completed GraphQL schema
-    pub fn schema_builder(self) -> SchemaBuilder {
-        let query = Object::new("Query");
-
+    pub fn add_to_schema_builder(self, schema: SchemaBuilder, query: Object) -> (SchemaBuilder, Object) {
         let query = self
             .queries
             .into_iter()
             .fold(query, |query, field| query.field(field));
-
-        let schema = Schema::build(query.type_name(), None, None);
 
         let mut relations = self.relations;
 
@@ -178,7 +174,7 @@ impl Builder {
         };
 
         // register static filter types
-        schema
+        let schema = schema
             .register(filter_input_builder.string_filter())
             .register(filter_input_builder.integer_filter())
             .register(filter_input_builder.float_filter())
@@ -231,7 +227,17 @@ impl Builder {
                     context: self.context,
                 }
                 .to_object(),
-            )
-            .register(query)
+            );
+
+        (schema, query)
+    }
+
+    pub fn schema_builder(self) -> SchemaBuilder {
+        let (schema, query) = self.add_to_schema_builder(
+            Schema::build("Query", None, None),
+            Object::new("Query"),
+        );
+
+        schema.register(query)
     }
 }
